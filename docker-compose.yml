@@ -1,6 +1,6 @@
 services:
 
-  # Configuramos la Base de Datos — reciclado del reto 2, solo cambia el nombre de la BD
+  # Configuramos la Base de Datos 
   base_datos:
     image: postgres:15
     container_name: base_datos
@@ -15,9 +15,8 @@ services:
     volumes:
       - volumen_postgres:/var/lib/postgresql/data
 
-  # Concentrador FastAPI — recibe, valida y agrega los datos de las 10 turbinas.
-  # Sustituye al cerebro_datos del reto 2, pero en vez de suscribirse a MQTT
-  # expone un endpoint HTTP al que las turbinas envían sus datos.
+  # Concentrador FastAPI recibe, valida y agrega los datos de las 10 turbinas.
+  # Las turbinas envían sus datos a un endpoint HTTP.
   concentrador:
     build:
       context: .
@@ -29,34 +28,32 @@ services:
       DB_NAME:          parque_eolico_db
       DB_USER:          deusto
       DB_PASS:          deusto
-      # Aparecen los prints al instante — reciclado del cerebro_datos del reto 2
+      # Aparecen los prints al instante 
       PYTHONUNBUFFERED: "1"
+    # Acceso directo a FastAPI — los docs están en localhost:8000/docs
     ports:
-      - "8000:8000"     # Acceso directo a FastAPI — los docs están en localhost:8000/docs
+      - "8000:8000"     
     depends_on:
       - base_datos
 
-  # Panel web — sirve el index.html y hace de proxy hacia la API del concentrador.
+  # Panel web sirve el index.html y hace de proxy hacia la API del concentrador.
   # El navegador llama a /api/* y nginx lo redirige a http://concentrador:8000/
   panel:
     image: nginx:alpine
     container_name: panel_web
+    # Panel accesible en localhost
     ports:
-      - "80:80"         # Panel accesible en localhost
-    # Se hace uso del read only para impedir que se hagan cambios — reciclado del reto 2
+      - "80:80"         
+    # Se hace uso del read only para impedir que se hagan cambios
     volumes:
       - ./panel/index.html:/usr/share/nginx/html/index.html:ro
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - concentrador
 
-  # ══════════════════════════════════════════════════════════════════════════
-  # 10 TURBINAS — cada una es un contenedor independiente con sus propias
-  # características. Todas usan el mismo Dockerfile pero con variables de
-  # entorno distintas, igual que el sensor_tierra del reto 2 pero multiplicado.
-  # ══════════════════════════════════════════════════════════════════════════
+  # 10 contenedores, uno por turbina, con sus propias características. 
+  # Todas usan el mismo Dockerfile pero con variables de entorno distintas.
 
-  # Turbina estándar en zona de viento moderado
   turbina_01:
     build: ./generadores
     container_name: turbina_01
@@ -64,16 +61,15 @@ services:
       TURBINA_ID:        "turbina_01"
       CONCENTRADOR_URL:  "http://concentrador:8000"
       API_KEY:           "parque_eolico_secreto"
-      POTENCIA_NOMINAL:  "2000"     # kW
-      VIENTO_MEDIO:      "12.0"     # m/s — zona expuesta
-      TEMP_NACELLE_BASE: "44.0"     # °C
-      PROB_ERROR:        "0.10"     # 10% de datos erróneos
-      INTERVALO:         "3"        # segundos entre envíos
+      POTENCIA_NOMINAL:  "2000"     
+      VIENTO_MEDIO:      "12.0"     
+      TEMP_NACELLE_BASE: "44.0"     
+      PROB_ERROR:        "0.10"     
+      INTERVALO:         "3"        
       PYTHONUNBUFFERED:  "1"
     depends_on:
       - concentrador
 
-  # Turbina más potente del parque — mejor ubicación con más viento
   turbina_02:
     build: ./generadores
     container_name: turbina_02
@@ -81,8 +77,8 @@ services:
       TURBINA_ID:        "turbina_02"
       CONCENTRADOR_URL:  "http://concentrador:8000"
       API_KEY:           "parque_eolico_secreto"
-      POTENCIA_NOMINAL:  "2500"     # kW — mayor capacidad
-      VIENTO_MEDIO:      "13.5"     # m/s — mejor posición en el parque
+      POTENCIA_NOMINAL:  "2500"     
+      VIENTO_MEDIO:      "13.5"     
       TEMP_NACELLE_BASE: "46.0"
       PROB_ERROR:        "0.08"
       INTERVALO:         "3"
@@ -90,7 +86,6 @@ services:
     depends_on:
       - concentrador
 
-  # Turbina antigua — menor capacidad y más fallos
   turbina_03:
     build: ./generadores
     container_name: turbina_03
@@ -98,10 +93,10 @@ services:
       TURBINA_ID:        "turbina_03"
       CONCENTRADOR_URL:  "http://concentrador:8000"
       API_KEY:           "parque_eolico_secreto"
-      POTENCIA_NOMINAL:  "1800"     # kW — turbina más antigua, menor capacidad
+      POTENCIA_NOMINAL:  "1800"     
       VIENTO_MEDIO:      "10.5"
-      TEMP_NACELLE_BASE: "48.0"     # más caliente por antigüedad
-      PROB_ERROR:        "0.15"     # más fallos por antigüedad
+      TEMP_NACELLE_BASE: "48.0"     
+      PROB_ERROR:        "0.15"     
       INTERVALO:         "3"
       PYTHONUNBUFFERED:  "1"
     depends_on:
@@ -123,7 +118,6 @@ services:
     depends_on:
       - concentrador
 
-  # La más potente y fiable del parque — nueva y en la mejor ubicación
   turbina_05:
     build: ./generadores
     container_name: turbina_05
@@ -131,16 +125,15 @@ services:
       TURBINA_ID:        "turbina_05"
       CONCENTRADOR_URL:  "http://concentrador:8000"
       API_KEY:           "parque_eolico_secreto"
-      POTENCIA_NOMINAL:  "3000"     # kW — la más potente del parque
-      VIENTO_MEDIO:      "14.0"     # m/s — mejor ubicación
+      POTENCIA_NOMINAL:  "3000"     
+      VIENTO_MEDIO:      "14.0"     
       TEMP_NACELLE_BASE: "50.0"
-      PROB_ERROR:        "0.05"     # la más fiable
+      PROB_ERROR:        "0.05"     
       INTERVALO:         "3"
       PYTHONUNBUFFERED:  "1"
     depends_on:
       - concentrador
 
-  # Turbina en zona de poco viento
   turbina_06:
     build: ./generadores
     container_name: turbina_06
@@ -149,7 +142,7 @@ services:
       CONCENTRADOR_URL:  "http://concentrador:8000"
       API_KEY:           "parque_eolico_secreto"
       POTENCIA_NOMINAL:  "2000"
-      VIENTO_MEDIO:      "9.0"      # m/s — zona de menor viento del parque
+      VIENTO_MEDIO:      "9.0"      
       TEMP_NACELLE_BASE: "42.0"
       PROB_ERROR:        "0.12"
       INTERVALO:         "3"
@@ -184,7 +177,7 @@ services:
       POTENCIA_NOMINAL:  "1900"
       VIENTO_MEDIO:      "11.5"
       TEMP_NACELLE_BASE: "47.0"
-      PROB_ERROR:        "0.20"     # la más problemática del parque
+      PROB_ERROR:        "0.20"     
       INTERVALO:         "3"
       PYTHONUNBUFFERED:  "1"
     depends_on:
