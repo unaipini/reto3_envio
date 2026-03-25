@@ -17,8 +17,7 @@ from modelo import DatosTurbina
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
 
-# Configuración del concentrador — reciclado del guardar_datos.py del reto 2
-# Cambia de puerto para el TLS cogiéndolo del docker-compose. Vuelve con string y da fallo, por eso int().
+# Configuración del concentrador a través de variables de entorno
 API_KEY = os.getenv("API_KEY", "parque_eolico_secreto")
 DB_HOST = os.getenv("DB_HOST", "base_datos")
 DB_NAME = os.getenv("DB_NAME", "parque_eolico_db")
@@ -42,7 +41,7 @@ app.add_middleware(
 
 
 # Intenta entrar en PostgreSQL con usuario y contraseña.
-# Reciclado del guardar_datos.py del reto 2 — mismo patrón de reintento cada 2 segundos.
+# Aplica un patrón de reintento cada 2 segundos si la BD aún no está lista.
 def conectar_bd():
     while True:
         try:
@@ -62,7 +61,7 @@ def conectar_bd():
 def crear_tablas(conn):
     with conn.cursor() as cur:
 
-        # Tabla de lecturas válidas — equivalente a 'mediciones' del reto 2
+        # Tabla de lecturas válidas
         cur.execute("""
             CREATE TABLE IF NOT EXISTS lecturas (
                 id                  SERIAL PRIMARY KEY,
@@ -104,7 +103,7 @@ def crear_tablas(conn):
     print("[BD] Tablas verificadas/creadas.")
 
 
-# Conexión global a la base de datos — reciclado del guardar_datos.py del reto 2
+# Conexión global a la base de datos
 conn = None
 
 
@@ -121,7 +120,7 @@ async def startup():
 
 
 # Comprueba que la petición lleva la API Key correcta en la cabecera HTTP.
-# Es la seguridad del reto 3 — equivalente a los certificados TLS del reto 2.
+# Representa el mecanismo de seguridad implementado en la comunicación.
 # Sin la clave correcta devuelve 401 y no ejecuta nada más.
 def verificar_api_key(x_api_key: str = Header(...)):
     if x_api_key != API_KEY:
@@ -141,7 +140,7 @@ stats = {
 }
 
 
-# Recibe el dato de una turbina — equivalente a al_recibir_mensaje() del reto 2.
+# Recibe el dato de una turbina y lo procesa.
 # DatosTurbina viene de modelo.py y aplica las 6 dimensiones de calidad del dato.
 # Si Pydantic rechaza el dato (422), FastAPI devuelve el error automáticamente
 # con el motivo exacto del fallo antes de llegar al código de abajo.
@@ -160,160 +159,4 @@ async def recibir_dato(datos: DatosTurbina, api_key: str = Depends(verificar_api
             "Dato marcado como erróneo por el generador",
             datos.model_dump()
         )
-        raise HTTPException(status_code=422, detail="Dato marcado como erróneo")
-
-    # Si llega aquí el dato pasó las 6 dimensiones de validación — lo guardamos
-    # Equivalente a guardar_lectura() del reto 2
-    _guardar_lectura(datos)
-
-    # Actualizamos las estadísticas en memoria para el panel web
-    stats["total_aceptados"] += 1
-    stats["por_turbina"][datos.turbina_id]["aceptados"] += 1
-    stats["por_turbina"][datos.turbina_id]["ultima_potencia"] = datos.potencia_generada
-
-    # Recalcula la potencia total del parque sumando la última lectura de cada turbina
-    stats["potencia_parque"] = sum(
-        v["ultima_potencia"] for v in stats["por_turbina"].values()
-    )
-    stats["ultima_actualizacion"] = datetime.now(timezone.utc).isoformat()
-
-    print(f"[BD] Guardado -> Turbina: {datos.turbina_id} | "
-          f"potencia={datos.potencia_generada:.1f}kW | "
-          f"viento={datos.velocidad_viento:.1f}m/s")
-    return {"status": "aceptado", "turbina_id": datos.turbina_id}
-
-
-# Estado general del parque — el panel web lo consulta cada 2 segundos
-@app.get("/estado", summary="Estado general del parque")
-async def estado_parque():
-    turbinas = []
-    for tid, v in stats["por_turbina"].items():
-        turbinas.append({
-            "turbina_id":      tid,
-            "aceptados":       v["aceptados"],
-            "rechazados":      v["rechazados"],
-            "ultima_potencia": v["ultima_potencia"],
-        })
-    # Ordenamos por nombre para que el panel las muestre siempre en el mismo orden
-    turbinas.sort(key=lambda x: x["turbina_id"])
-    return {
-        "total_recibidos":      stats["total_recibidos"],
-        "total_aceptados":      stats["total_aceptados"],
-        "total_rechazados":     stats["total_rechazados"],
-        "potencia_parque_kw":   round(stats["potencia_parque"], 2),
-        "turbinas":             turbinas,
-        "ultima_actualizacion": stats["ultima_actualizacion"],
-    }
-
-
-# Devuelve los últimos 60 registros de la tabla de agregados minutales
-@app.get("/agregados", summary="Últimos agregados minutales")
-async def ultimos_agregados():
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute("""
-            SELECT turbina_id, minuto, potencia_media, potencia_total,
-                   viento_medio, num_lecturas
-            FROM agregados_minutales
-            ORDER BY minuto DESC, turbina_id
-            LIMIT 60;
-        """)
-        return cur.fetchall()
-
-
-# Devuelve las últimas 50 lecturas válidas — equivalente a la consulta SELECT del reto 2
-@app.get("/lecturas/recientes", summary="Últimas 50 lecturas válidas")
-async def lecturas_recientes():
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute("""
-            SELECT turbina_id,
-                   to_timestamp(timestamp_ms/1000) AS hora,
-                   potencia_generada, velocidad_viento,
-                   temperatura_nacelle, rpm_rotor
-            FROM lecturas
-            ORDER BY timestamp_ms DESC
-            LIMIT 50;
-        """)
-        return cur.fetchall()
-
-
-# Devuelve los últimos 30 datos rechazados — para ver en el panel qué llegó corrupto
-@app.get("/rechazados/recientes", summary="Últimos 30 datos rechazados")
-async def rechazados_recientes():
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute("""
-            SELECT turbina_id, motivo,
-                   to_timestamp(timestamp_ms/1000) AS hora,
-                   datos_crudos
-            FROM rechazados
-            ORDER BY creado_en DESC
-            LIMIT 30;
-        """)
-        return cur.fetchall()
-
-
-# Endpoint de salud — para comprobar que el concentrador está activo
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-
-# Guarda una lectura válida en la tabla lecturas — reciclado de guardar_lectura() del reto 2
-def _guardar_lectura(d: DatosTurbina):
-    sql = """
-    INSERT INTO lecturas
-      (turbina_id, timestamp_ms, velocidad_viento, potencia_generada,
-       temperatura_nacelle, rpm_rotor)
-    VALUES (%s, %s, %s, %s, %s, %s);
-    """
-    try:
-        with conn.cursor() as cur:
-            cur.execute(sql, (
-                d.turbina_id, d.timestamp, d.velocidad_viento,
-                d.potencia_generada, d.temperatura_nacelle, d.rpm_rotor
-            ))
-    except Exception as e:
-        print(f"[ERROR BD] No se pudo guardar: {e}")
-
-
-# Guarda un dato rechazado en la tabla rechazados junto al motivo del rechazo
-def _guardar_rechazado(turbina_id, timestamp_ms, motivo, datos):
-    sql = """
-    INSERT INTO rechazados (turbina_id, timestamp_ms, motivo, datos_crudos)
-    VALUES (%s, %s, %s, %s);
-    """
-    try:
-        with conn.cursor() as cur:
-            cur.execute(sql, (turbina_id, timestamp_ms, motivo, json.dumps(datos)))
-    except Exception as e:
-        print(f"[ERROR BD] No se pudo guardar rechazo: {e}")
-
-
-# Tarea en segundo plano que se ejecuta cada 60 segundos.
-# Calcula con SQL la media y el total de producción de cada turbina en el último minuto
-# y los guarda en la tabla agregados_minutales.
-async def tarea_agregacion_minutal():
-    while True:
-        await asyncio.sleep(60)
-        print(f"[AGREGACION] Calculando agregados minutales...")
-        try:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO agregados_minutales
-                      (minuto, turbina_id, potencia_media, potencia_total,
-                       viento_medio, num_lecturas)
-                    SELECT
-                        date_trunc('minute', to_timestamp(timestamp_ms/1000.0)) AS minuto,
-                        turbina_id,
-                        AVG(potencia_generada)  AS potencia_media,
-                        SUM(potencia_generada)  AS potencia_total,
-                        AVG(velocidad_viento)   AS viento_medio,
-                        COUNT(*)                AS num_lecturas
-                    FROM lecturas
-                    WHERE to_timestamp(timestamp_ms/1000.0) >= NOW() - INTERVAL '2 minutes'
-                      AND to_timestamp(timestamp_ms/1000.0) <  date_trunc('minute', NOW())
-                    GROUP BY 1, 2
-                    ON CONFLICT DO NOTHING;
-                """)
-            print("[AGREGACION] Agregados minutales guardados correctamente")
-        except Exception as e:
-            print(f"[ERROR AGREGACION] {e}")
+        raise HTTPException(status_code=422, detail="Dato marcado como erróneo
