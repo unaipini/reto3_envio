@@ -1,6 +1,5 @@
-# Define las instrucciones para construir el contenedor de cada turbina.
-# Los 10 generadores comparten este mismo Dockerfile — la diferencia entre
-# ellos está en las variables de entorno del docker-compose, no en la imagen.
+# Define las instrucciones para el contenedor de cada turbina.
+# Se diferencian en las variables de entorno del docker-compose, no en la imagen.
 FROM python:3.11-slim
 
 WORKDIR /app
