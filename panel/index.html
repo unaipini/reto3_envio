@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parque Eólico — Panel de Control</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #070d1a;
+  --surface:  #0d1b2e;
+  --surface2: #132338;
+  --border:   #1e3352;
+  --accent:   #00c8ff;
+  --green:    #00e676;
+  --red:      #ff4444;
+  --yellow:   #ffd740;
+  --text:     #e0eaf5;
+  --muted:    #5a7a9e;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+/* ── HEADER ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.header-left h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.header-left p {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+
+.status-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s infinite;
+}
+.status-dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.last-update {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-align: right;
+}
+
+/* ── KPI CARDS ── */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+.kpi.blue::before  { background: var(--accent); }
+.kpi.green::before { background: var(--green); }
+.kpi.red::before   { background: var(--red); }
+.kpi.yellow::before{ background: var(--yellow); }
+
+.kpi-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.4rem;
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.kpi-unit {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+  font-family: 'Space Mono', monospace;
+}
+
+.kpi.blue  .kpi-value { color: var(--accent); }
+.kpi.green .kpi-value { color: var(--green); }
+.kpi.red   .kpi-value { color: var(--red); }
+.kpi.yellow .kpi-value { color: var(--yellow); }
+
+/* ── GRID PRINCIPAL ── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 900px) {
+  .main-grid { grid-template-columns: 1fr; }
+}
+
+/* ── TURBINE GRID ── */
+.section-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 0.8rem;
+}
+
+.turbines {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.6rem;
+}
+
+@media (max-width: 700px) {
+  .turbines { grid-template-columns: repeat(2, 1fr); }
+}
+
+.turbine-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8rem;
+  transition: border-color 0.3s;
+  position: relative;
+}
+
+.turbine-card.activa { border-color: rgba(0, 200, 255, 0.3); }
+.turbine-card.error  { border-color: rgba(255, 68, 68, 0.4); background: rgba(255, 68, 68, 0.05); }
+
+.turbine-id {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+
+.turbine-power {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+
+.turbine-power.baja { color: var(--yellow); }
+.turbine-power.nula { color: var(--muted); }
+
+.turbine-stats {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.58rem;
+  color: var(--muted);
+  margin-top: 0.3rem;
+}
+
+.turbine-err-badge {
+  position: absolute;
+  top: 0.4rem; right: 0.4rem;
+  background: var(--red);
+  color: white;
+  font-size: 0.5rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-family: 'Space Mono', monospace;
+}
+
+/* ── TURBINE ICONS ── */
+.turbine-icon {
+  font-size: 1.4rem;
+  margin-bottom: 0.2rem;
+  display: block;
+  animation: none;
+}
+.turbine-icon.spin { animation: girar 2s linear infinite; }
+.turbine-icon.slow { animation: girar 5s linear infinite; }
+
+@keyframes girar {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── LOG PANEL ── */
+.log-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.log-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.log-entry {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 3px;
+  border-left: 2px solid transparent;
+  line-height: 1.5;
+}
+.log-entry.ok     { border-color: var(--green); color: #7fffa0; background: rgba(0, 230, 118, 0.05); }
+.log-entry.warn   { border-color: var(--red);   color: #ff8080; background: rgba(255, 68, 68, 0.05); }
+.log-entry.info   { border-color: var(--accent); color: var(--muted); }
+
+/* ── BAR CHART ── */
+.chart-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  height: 100px;
+  margin-top: 0.8rem;
+}
+
+.bar-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  gap: 0.2rem;
+}
+
+.bar {
+  width: 100%;
+  background: linear-gradient(180deg, var(--accent), rgba(0, 200, 255, 0.3));
+  border-radius: 3px 3px 0 0;
+  transition: height 0.5s ease;
+  min-height: 2px;
+}
+
+.bar-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.5rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ── RECHAZADOS TABLE ── */
+.table-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  font-family: 'Space Mono', monospace;
+}
+
+th {
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid rgba(30, 51, 82, 0.5);
+  color: var(--text);
+  vertical-align: top;
+}
+
+td.motivo { color: var(--red); font-size: 0.65rem; }
+td.tid    { color: var(--accent); }
+
+.error { color: var(--muted); font-size: 0.72rem; text-align: center; padding: 1rem; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>
+      <div class="status-dot" id="statusDot"></div>
+      🌬️ Parque Eólico — Panel de Control
+    </h1>
+    <p>Concentrador FastAPI · Actualización cada 2s · 10 turbinas activas</p>
+  </div>
+  <div class="last-update" id="lastUpdate">—</div>
+</div>
+
+<!-- KPIs -->
+<div class="kpis">
+  <div class="kpi blue">
+    <div class="kpi-label">Potencia total parque</div>
+    <div class="kpi-value" id="kpiPotencia">—</div>
+    <div class="kpi-unit">kW</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-label">Datos aceptados</div>
+    <div class="kpi-value" id="kpiAceptados">—</div>
+    <div class="kpi-unit">total</div>
+  </div>
+  <div class="kpi red">
+    <div class="kpi-label">Datos rechazados</div>
+    <div class="kpi-value" id="kpiRechazados">—</div>
+    <div class="kpi-unit">total</div>
+  </div>
+  <div class="kpi yellow">
+    <div class="kpi-label">Tasa de error</div>
+    <div class="kpi-value" id="kpiTasa">—</div>
+    <div class="kpi-unit">%</div>
+  </div>
+</div>
+
+<!-- Turbinas + Log -->
+<div class="main-grid">
+  <div>
+    <div class="section-title">Estado de turbinas</div>
+    <div class="turbines" id="turbinesGrid">
+      <div class="error">Cargando turbinas...</div>
+    </div>
+  </div>
+
+  <div class="log-panel">
+    <div class="section-title">Log en tiempo real</div>
+    <div class="log-list" id="logList"></div>
+  </div>
+</div>
+
+<!-- Gráfico de potencia por turbina -->
+<div class="chart-section">
+  <div class="section-title">Potencia actual por turbina (kW)</div>
+  <div class="bar-chart" id="barChart">
+    <div class="error">Sin datos</div>
+  </div>
+</div>
+
+<!-- Tabla de rechazados -->
+<div class="table-section">
+  <div class="section-title">Últimos datos rechazados</div>
+  <div id="rechazadosTable"><div class="error">Cargando...</div></div>
+</div>
+
+<script>
+  const API = '';  // mismo origen — nginx lo proxifica
+  const logs = [];
+  let lastTurbinas = {};
+
+  function addLog(msg, tipo = 'info') {
+    const hora = new Date().toLocaleTimeString('es', {hour12: false});
+    logs.unshift({ hora, msg, tipo });
+    if (logs.length > 50) logs.pop();
+    renderLog();
+  }
+
+  function renderLog() {
+    const el = document.getElementById('logList');
+    el.innerHTML = logs.map(l =>
+      `<div class="log-entry ${l.tipo}">${l.hora} ${l.msg}</div>`
+    ).join('');
+  }
+
+  async function actualizarEstado() {
+    try {
+      const r = await fetch('/api/estado');
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+
+      // KPIs
+      document.getElementById('kpiPotencia').textContent = Math.round(d.potencia_parque_kw).toLocaleString();
+      document.getElementById('kpiAceptados').textContent = d.total_aceptados.toLocaleString();
+      document.getElementById('kpiRechazados').textContent = d.total_rechazados.toLocaleString();
+      const tasa = d.total_recibidos > 0
+        ? ((d.total_rechazados / d.total_recibidos) * 100).toFixed(1)
+        : '0.0';
+      document.getElementById('kpiTasa').textContent = tasa;
+
+      if (d.ultima_actualizacion) {
+        const dt = new Date(d.ultima_actualizacion);
+        document.getElementById('lastUpdate').textContent =
+          'Actualizado: ' + dt.toLocaleTimeString('es');
+      }
+
+      document.getElementById('statusDot').className = 'status-dot';
+
+      // Grid de turbinas
+      const grid = document.getElementById('turbinesGrid');
+      if (d.turbinas && d.turbinas.length > 0) {
+        const MAX_POT = 2000;
+        grid.innerHTML = d.turbinas.map(t => {
+          const pct = Math.min(100, (t.ultima_potencia / MAX_POT) * 100);
+          let cls = pct > 50 ? 'activa' : (pct > 5 ? '' : 'error');
+          let powerCls = pct > 50 ? '' : (pct > 5 ? 'baja' : 'nula');
+          let iconCls = pct > 50 ? 'spin' : (pct > 5 ? 'slow' : '');
+
+          // Detectar cambios para log
+          const prev = lastTurbinas[t.turbina_id];
+          if (prev !== undefined) {
+            const diff = t.aceptados - (prev.aceptados || 0);
+            const diffErr = t.rechazados - (prev.rechazados || 0);
+            if (diff > 0) addLog(`${t.turbina_id} → ${t.ultima_potencia.toFixed(0)}kW`, 'ok');
+            if (diffErr > 0) addLog(`${t.turbina_id} ⚠️ dato rechazado`, 'warn');
+          }
+          lastTurbinas[t.turbina_id] = {...t};
+
+          return `
+            <div class="turbine-card ${cls}">
+              <span class="turbine-icon ${iconCls}">⚡</span>
+              <div class="turbine-id">${t.turbina_id}</div>
+              <div class="turbine-power ${powerCls}">${t.ultima_potencia.toFixed(0)} kW</div>
+              <div class="turbine-stats">✅${t.aceptados} ❌${t.rechazados}</div>
+              ${t.rechazados > 0 ? '<span class="turbine-err-badge">ERR</span>' : ''}
+            </div>`;
+        }).join('');
+
+        // Gráfico de barras
+        const barChart = document.getElementById('barChart');
+        barChart.innerHTML = d.turbinas.map(t => {
+          const pct = Math.min(100, (t.ultima_potencia / MAX_POT) * 100);
+          return `
+            <div class="bar-wrap">
+              <div class="bar" style="height:${Math.max(2, pct)}%"></div>
+              <div class="bar-label">${t.turbina_id.replace('turbina_', 'T')}</div>
+            </div>`;
+        }).join('');
+      }
+    } catch (e) {
+      document.getElementById('statusDot').className = 'status-dot offline';
+      addLog('Concentrador no disponible', 'warn');
+    }
+  }
+
+  async function actualizarRechazados() {
+    try {
+      const r = await fetch('/api/rechazados/recientes');
+      if (!r.ok) return;
+      const datos = await r.json();
+      const el = document.getElementById('rechazadosTable');
+      if (!datos || datos.length === 0) {
+        el.innerHTML = '<div class="error">Sin rechazos registrados</div>';
+        return;
+      }
+      el.innerHTML = `
+        <table>
+          <thead>
+            <tr><th>Turbina</th><th>Hora</th><th>Motivo</th></tr>
+          </thead>
+          <tbody>
+            ${datos.map(d => `
+              <tr>
+                <td class="tid">${d.turbina_id}</td>
+                <td>${d.hora ? new Date(d.hora).toLocaleTimeString('es') : '—'}</td>
+                <td class="motivo">${d.motivo || '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {}
+  }
+
+  // Polling
+  actualizarEstado();
+  actualizarRechazados();
+  setInterval(actualizarEstado, 2000);
+  setInterval(actualizarRechazados, 5000);
+</script>
+</body>
+</html>
