@@ -9,7 +9,6 @@ COPY concentrador/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiamos el concentrador y el modelo compartido con las 6 dimensiones de validación.
-# modelo.py está en la raíz del proyecto y lo necesitan tanto el concentrador como los generadores.
 COPY concentrador/concentrador.py .
 COPY modelo.py .
 
