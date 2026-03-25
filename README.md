@@ -6,7 +6,9 @@ Simulación de un parque eólico con 10 turbinas individuales, concentrador cent
 
 ## 👥 Miembros del equipo
 
-Juan Mari, Unai e Imanol Lama
+- Juan Mari Díaz
+- Unai Pinilla
+- Imanol Lama
 
 ---
 
