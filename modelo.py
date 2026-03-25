@@ -23,7 +23,7 @@ class DatosTurbina(BaseModel):
     # Completeness: todos los campos son obligatorios — si falta cualquiera → 422
     turbina_id:          str
 
-    # Timeliness: el timestamp viene en milisegundos epoch, igual que en el reto 2
+    # Timeliness: el timestamp viene en milisegundos epoch
     timestamp:           int
 
     # Accuracy: rangos físicamente realistas para una turbina eólica de 2 MW
@@ -38,12 +38,13 @@ class DatosTurbina(BaseModel):
 
     # ── Timeliness ────────────────────────────────────────────────────────────
     # El dato debe ser reciente — no aceptamos timestamps demasiado antiguos.
-    # Adaptado del modelo.py de Unai al formato de timestamp en milisegundos del reto 2.
     @field_validator("timestamp")
     @classmethod
     def validar_timeliness(cls, v):
         ahora_ms    = int(datetime.now(timezone.utc).timestamp() * 1000)
-        antiguedad  = (ahora_ms - v) / 1000   # convertimos a segundos
+        
+        # Convertimos a segundos
+        antiguedad  = (ahora_ms - v) / 1000
 
         # No aceptamos datos de más de 5 minutos de antigüedad
         if antiguedad > 300:
@@ -58,14 +59,7 @@ class DatosTurbina(BaseModel):
         return v
 
 
-    # ── Consistency ───────────────────────────────────────────────────────────
-    # Comprueba que los valores no se contradigan entre sí.
-    # Reciclado y adaptado del model_validator de Unai a nuestros campos.
-    #
-    # Reglas físicas de un aerogenerador de 2 MW:
-    #   Cut-in  = 3 m/s  — por debajo no hay rotación ni potencia
-    #   Rated   = 12 m/s — potencia nominal 2000 kW
-    #   Cut-out = 25 m/s — la turbina se para por seguridad
+    # Consistencia. Comprueba que los valores no se contradigan entre sí.
     @model_validator(mode="after")
     def validar_consistencia_fisica(self) -> "DatosTurbina":
 
