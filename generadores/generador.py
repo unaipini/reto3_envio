@@ -5,12 +5,11 @@ import random
 import requests
 import numpy as np
 
-# Recoge el valor de la variable de entorno — reciclado del simulador_sensor.py del reto 2
+# Recoge el valor de la variable de entorno
 def leer_config(clave, valor_por_defecto):
     return os.environ.get(clave, valor_por_defecto)
 
-# Función para generar datos realistas por medio de la Distribución Normal (numpy).
-# Reciclada del reto 2 — misma función, ahora genera datos de turbina en vez de suelo.
+# Función para generar datos realistas por medio de la Distribución Normal con numpy.
 def generar_dato(media, variacion, minimo=None, maximo=None):
     valor = np.random.normal(float(media), variacion)
     # Recorta el valor si se pasan límites, para que no salga un dato imposible
@@ -21,17 +20,21 @@ def generar_dato(media, variacion, minimo=None, maximo=None):
     return round(float(valor), 2)
 
 def main():
-    # Llama a leer_config() para cargar todas las variables — igual que en el reto 2
+    # Llama a leer_config() para cargar todas las variables
     concentrador_url  = leer_config("CONCENTRADOR_URL",  "http://concentrador:8000")
     api_key           = leer_config("API_KEY",           "parque_eolico_secreto")
     turbina_id        = leer_config("TURBINA_ID",        "turbina_01")
     intervalo         = int(leer_config("INTERVALO",     "3"))
 
-    # Características físicas de esta turbina — cada contenedor tiene valores distintos
-    potencia_nominal  = float(leer_config("POTENCIA_NOMINAL",  "2000"))   # kW
-    viento_medio      = float(leer_config("VIENTO_MEDIO",      "12.0"))   # m/s media local
-    temp_nacelle_base = float(leer_config("TEMP_NACELLE_BASE", "45.0"))   # °C base de la góndola
-    prob_error        = float(leer_config("PROB_ERROR",        "0.10"))   # probabilidad de dato erróneo
+    # Características físicas de esta turbina cada contenedor tiene valores distintos
+    # kW
+    potencia_nominal  = float(leer_config("POTENCIA_NOMINAL",  "2000"))   
+    # m/s media local
+    viento_medio      = float(leer_config("VIENTO_MEDIO",      "12.0"))   
+    # °C base de la góndola
+    temp_nacelle_base = float(leer_config("TEMP_NACELLE_BASE", "45.0"))   
+    # probabilidad de dato erróneo
+    prob_error        = float(leer_config("PROB_ERROR",        "0.10"))   
 
     print(f"[{turbina_id}] Turbina iniciada | "
           f"Nominal={potencia_nominal}kW | "
@@ -41,16 +44,18 @@ def main():
     # Espera a que el concentrador esté listo antes de empezar a enviar
     time.sleep(5)
 
-    # Envío de datos — equivalente al while True del simulador_sensor.py del reto 2
+    # Envío de datos
     while True:
         # Crea el paquete de datos de la turbina con distribución normal
         viento = generar_dato(viento_medio, 2.5, minimo=0.0, maximo=35.0)
 
         # La potencia sigue una curva física real: sin viento no genera, con demasiado se para
         if viento < 3.0:
-            potencia = 0.0                                      # velocidad mínima de arranque
+            # velocidad mínima de arranque
+            potencia = 0.0                                      
         elif viento > 25.0:
-            potencia = 0.0                                      # parada de seguridad por viento excesivo
+            # parada de seguridad por viento excesivo
+            potencia = 0.0                                      
         else:
             factor = min(1.0, (viento - 3.0) / (12.0 - 3.0))
             potencia = potencia_nominal * (factor ** 3)
@@ -62,7 +67,8 @@ def main():
 
         datos = {
             "turbina_id":          turbina_id,
-            "timestamp":           int(time.time() * 1000),    # milisegundos epoch, igual que en el reto 2
+            # milisegundos epoch
+            "timestamp":           int(time.time() * 1000),    
             "velocidad_viento":    viento,
             "potencia_generada":   potencia,
             "temperatura_nacelle": temp,
@@ -75,7 +81,7 @@ def main():
             datos = inyectar_error(datos)
             print(f"[{turbina_id}] Inyectando dato erróneo...")
 
-        # Se transforma en JSON y se envía al concentrador por HTTP — en el reto 2 era MQTT publish
+        # Se transforma en JSON y se envía al concentrador por HTTP
         enviar_dato(datos, concentrador_url, api_key, turbina_id)
 
         time.sleep(intervalo)
@@ -90,13 +96,17 @@ def inyectar_error(datos: dict) -> dict:
         campo = random.choice(["velocidad_viento", "potencia_generada",
                                "temperatura_nacelle", "rpm_rotor"])
         if campo == "velocidad_viento":
-            datos[campo] = round(random.uniform(45.0, 100.0), 2)   # ningún viento opera a 100 m/s
+            # ningún viento opera a 100 m/s
+            datos[campo] = round(random.uniform(45.0, 100.0), 2)   
         elif campo == "potencia_generada":
-            datos[campo] = round(random.uniform(3500.0, 9999.0), 2) # supera el límite del generador
+            # supera el límite del generador
+            datos[campo] = round(random.uniform(3500.0, 9999.0), 2) 
         elif campo == "temperatura_nacelle":
-            datos[campo] = round(random.uniform(90.0, 200.0), 2)    # temperatura de incendio
+            # temperatura de incendio
+            datos[campo] = round(random.uniform(90.0, 200.0), 2)    
         elif campo == "rpm_rotor":
-            datos[campo] = round(random.uniform(30.0, 99.0), 2)     # destruiría el rotor
+            # destruiría el rotor
+            datos[campo] = round(random.uniform(30.0, 99.0), 2)     
 
     elif tipo == "marcado":
         # El generador avisa directamente al concentrador de que el dato es erróneo
@@ -111,14 +121,13 @@ def inyectar_error(datos: dict) -> dict:
 
 
 # Envía el dato al concentrador FastAPI con la API Key en la cabecera HTTP.
-# En el reto 2 era cliente.publish() hacia el broker MQTT.
-# Aquí es requests.post() hacia FastAPI — el concentrador responde si acepta o rechaza.
+# El concentrador responde mediante HTTP indicando si acepta o rechaza el dato.
 def enviar_dato(datos: dict, url: str, api_key: str, turbina_id: str):
     try:
         respuesta = requests.post(
             f"{url}/datos",
             json=datos,
-            # La API Key va en la cabecera — equivalente al certificado TLS del reto 2
+            # La API Key va en la cabecera HTTP
             headers={"x-api-key": api_key},
             timeout=5
         )
@@ -127,7 +136,7 @@ def enviar_dato(datos: dict, url: str, api_key: str, turbina_id: str):
                   f"potencia={datos['potencia_generada']:.1f}kW | "
                   f"viento={datos['velocidad_viento']:.1f}m/s")
         elif respuesta.status_code == 422:
-            # El concentrador rechazó el dato — nos lo comunica directamente (imposible con MQTT)
+            # El concentrador rechazó el dato — nos lo comunica directamente
             print(f"[{turbina_id}] Rechazado por el concentrador -> {respuesta.json().get('detail')}")
         elif respuesta.status_code == 401:
             print(f"[{turbina_id}] API Key inválida — acceso denegado")
