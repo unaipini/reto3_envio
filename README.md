@@ -115,7 +115,7 @@ curl.exe -X POST "http://localhost:8000/datos" -H "Content-Type: application/jso
 Algunos datos erróneos pasan la validación de Pydantic si el valor erróneo está dentro de rango pero el generador los marca como `es_erroneo: true`. Se maneja como caso especial en el endpoint antes de guardar.
 
 ### Race condition en el arranque
-PostgreSQL tarda en inicializarse. El concentrador reintenta la conexión cada 2 segundos con un bucle while hasta que la BD esté lista, igual que en el reto anterior.
+PostgreSQL tarda en inicializarse. El concentrador reintenta la conexión cada 2 segundos con un bucle while hasta que la BD esté lista.
 
 ### 10 contenedores con el mismo Dockerfile
 Todos los generadores comparten imagen pero tienen comportamiento diferente vía variables de entorno. Docker Compose los construye una sola vez (caché) y los lanza con configuración distinta.
@@ -126,7 +126,7 @@ Todos los generadores comparten imagen pero tienen comportamiento diferente vía
 
 - **Grafana + InfluxDB** para visualización avanzada de series temporales.
 - **WebSockets** en el panel en lugar de polling, para actualizaciones en tiempo real sin overhead HTTP.
-- **HTTPS** en el concentrador con certificados propios (reutilizando lo aprendido en el reto 2).
+- **HTTPS** en el concentrador con certificados propios.
 - **Alertas automáticas** cuando una turbina supera umbrales de temperatura o RPM.
 - **API Key por turbina** en lugar de una compartida, para revocar acceso individualmente.
 - **Simulación de viento correlacionado** entre turbinas contiguas (en un parque real el viento no es independiente entre aerogeneradores).
@@ -136,7 +136,7 @@ Todos los generadores comparten imagen pero tienen comportamiento diferente vía
 ## 🔀 Alternativas posibles
 
 ### Protocolo de comunicación
-En lugar de HTTP/REST se podría usar MQTT (como en el reto 2) con el concentrador como suscriptor. La ventaja de HTTP es que el concentrador puede responder directamente al generador (ACK o rechazo), mientras que MQTT es fire-and-forget.
+En lugar de HTTP/REST se podría usar MQTT con el concentrador como suscriptor. La ventaja de HTTP es que el concentrador puede responder directamente al generador (ACK o rechazo), mientras que MQTT es fire-and-forget.
 
 ### Validación
 En lugar de Pydantic se podría usar `jsonschema` o `marshmallow`. Pydantic se eligió por su integración nativa con FastAPI y su rendimiento.
