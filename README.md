@@ -101,15 +101,10 @@ GROUP BY minuto ORDER BY minuto DESC LIMIT 10;
 ### 5. Probar la seguridad (API Key)
 ```bash
 # Con API Key correcta → debe funcionar
-curl -X POST http://localhost:8000/datos \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: parque_eolico_secreto" \
-  -d '{"turbina_id":"test","timestamp":1234567890000,"velocidad_viento":12.0,"potencia_generada":800.0,"temperatura_nacelle":45.0,"rpm_rotor":14.0}'
+curl.exe -X POST "http://localhost:8000/datos" -H "Content-Type: application/json" -H "x-api-key: parque_eolico_secreto" -d "{\""turbina_id\"":\""test\"",\""timestamp\"":1234567890000,\""velocidad_viento\"":12.0,\""potencia_generada\"":800.0,\""temperatura_nacelle\"":45.0,\""rpm_rotor\"":14.0}"
 
 # Sin API Key → 422 Unprocessable / 401 Unauthorized
-curl -X POST http://localhost:8000/datos \
-  -H "Content-Type: application/json" \
-  -d '{"turbina_id":"intruso","timestamp":1234567890000,"velocidad_viento":12.0,"potencia_generada":800.0,"temperatura_nacelle":45.0,"rpm_rotor":14.0}'
+curl.exe -X POST "http://localhost:8000/datos" -H "Content-Type: application/json" -d "{\""turbina_id\"":\""intruso\"",\""timestamp\"":1234567890000,\""velocidad_viento\"":12.0,\""potencia_generada\"":800.0,\""temperatura_nacelle\"":45.0,\""rpm_rotor\"":14.0}"
 ```
 
 ---
